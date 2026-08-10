@@ -1,0 +1,34 @@
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      POSTGRES_URL: postgresql://domainwatch:domainwatch@postgres:5432/domainwatch
+      MONGO_URL: mongodb://mongo:27017
+      MONGO_DB_NAME: domainwatch
+    depends_on:
+      - postgres
+      - mongo
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: domainwatch
+      POSTGRES_PASSWORD: domainwatch
+      POSTGRES_DB: domainwatch
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  mongo:
+    image: mongo:7
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+volumes:
+  postgres_data:
+  mongo_data:
