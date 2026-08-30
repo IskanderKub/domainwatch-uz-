@@ -48,6 +48,7 @@ class CheckerService:
 
             similarity_ratio = None
             is_suspected_defacement = False
+            snapshot_id = None
             try:
                 previous_snapshot = self.snapshot_repository.get_latest(domain.id)
                 if previous_snapshot is not None:
@@ -62,7 +63,7 @@ class CheckerService:
 
                     # always store the new snapshot, even if this check flagged a defacement,
                     # so the next check compares against the latest known content
-                self.snapshot_repository.save(domain.id, text_content)
+                snapshot_id = self.snapshot_repository.save(domain.id, text_content)
             except PyMongoError as exc:
                 logger.warning(
                     "Snapshot storage unavailable for domain %s: %s", domain.id, exc
@@ -87,4 +88,12 @@ class CheckerService:
                 error_message=str(exc),
             )
 
-        return self.check_repository.create(check)
+        check = self.check_repository.create(check)
+
+        if snapshot_id is not None:
+            try:
+                self.snapshot_repository.attach_check_id(snapshot_id, check.id)
+            except PyMongoError as exc:
+                logger.warning("Failed to link snapshot to check %s: %s", check.id, exc)
+
+        return check
