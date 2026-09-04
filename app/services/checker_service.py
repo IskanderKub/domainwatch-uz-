@@ -41,6 +41,7 @@ class CheckerService:
 
     def check_domain(self, domain: Domain) -> CheckResult:
         started_at = time.monotonic()
+        snapshot_id = None
         try:
             response = requests.get(domain.url, timeout=settings.check_timeout_seconds)
             response_time_ms = (time.monotonic() - started_at) * 1000
@@ -48,7 +49,6 @@ class CheckerService:
 
             similarity_ratio = None
             is_suspected_defacement = False
-            snapshot_id = None
             try:
                 previous_snapshot = self.snapshot_repository.get_latest(domain.id)
                 if previous_snapshot is not None:
