@@ -1,12 +1,17 @@
 # Data-access layer for page-text snapshots stored in MongoDB.
 # Kept separate from PostgreSQL repositories since it uses a different driver (pymongo).
 from datetime import datetime, timezone
+import hashlib
 
 from pymongo.collection import Collection
 
 from app.core.mongo import snapshots_collection
 
 from bson import ObjectId
+
+
+def _content_hash(text: str) -> str:
+    return hashlib.sha256(text.encode()).hexdigest()
 
 
 class SnapshotRepository:
@@ -26,7 +31,7 @@ class SnapshotRepository:
     def attach_check_id(self, snapshot_id: ObjectId, check_id: int) -> None:
         self.collection.update_one(
             {"_id": snapshot_id},
-            {"$set": {"check_id":check_id}},
+            {"$set": {"check_id": check_id}},
         )
 
     def get_latest(self, domain_id: int) -> dict | None:
