@@ -12,8 +12,13 @@ mongo_db = mongo_client[settings.mongo_db_name]
 # Collection holding one document per (domain, check) with the extracted page text
 snapshots_collection = mongo_db["snapshots"]
 
+
 def ensure_indexes():
     snapshots_collection.create_index([("domain_id", 1), ("checked_at", -1)])
+    snapshots_collection.create_index(
+        "checked_at",
+        expireAfterSeconds=settings.snapshot_ttl_days * 24 * 60 * 60,
+    )
 
 
 def ensure_schema_validator():
