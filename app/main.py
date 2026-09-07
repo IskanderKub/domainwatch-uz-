@@ -5,7 +5,7 @@ from fastapi import FastAPI
 
 from app.api.v1 import router as api_v1_router
 from app.core.postgres import Base, engine
-from app.core.mongo import ensure_indexes, mongo_client
+from app.core.mongo import ensure_indexes, ensure_schema_validator, mongo_client
 from app.core.scheduler import start_scheduler, stop_scheduler
 
 
@@ -15,6 +15,7 @@ async def lifespan(app: FastAPI):
     # pet project; a production service would use Alembic migrations instead
     Base.metadata.create_all(bind=engine)
     ensure_indexes()
+    ensure_schema_validator()
     start_scheduler()
     yield
     stop_scheduler()
