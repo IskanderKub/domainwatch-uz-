@@ -5,22 +5,7 @@ import requests
 from app.core.config import settings
 from app.models.sql_models import Domain
 from app.services.checker_service import CheckerService
-
-
-class FakeSnapshotRepository:
-    """In-memory stand-in for SnapshotRepository, avoiding a real MongoDB connection."""
-
-    def __init__(self, latest_text: str | None = None):
-        self._latest_text = latest_text
-        self.saved = []
-
-    def get_latest(self, domain_id: int):
-        if self._latest_text is None:
-            return None
-        return {"domain_id": domain_id, "text_content": self._latest_text}
-
-    def save(self, domain_id: int, text_content: str) -> None:
-        self.saved.append((domain_id, text_content))
+from tests.fakes import FakeSnapshotRepository
 
 
 class FakeResponse:
@@ -47,7 +32,7 @@ def test_check_domain_first_check_has_no_similarity(db_session, mocker):
         "app.services.checker_service.requests.get",
         return_value=FakeResponse(text="<html><body>Ministry of Finance</body></html>"),
     )
-    snapshot_repo = FakeSnapshotRepository(latest_text=None)
+    snapshot_repo = FakeSnapshotRepository()
     service = CheckerService(db_session, snapshot_repository=snapshot_repo)
 
     result = service.check_domain(domain)
@@ -57,7 +42,7 @@ def test_check_domain_first_check_has_no_similarity(db_session, mocker):
     assert result.similarity_ratio is None
     assert result.is_suspected_defacement is False
     # HTML tags are stripped before saving the snapshot
-    assert snapshot_repo.saved[0][1] == "Ministry of Finance"
+    assert snapshot_repo.documents[0]["text_content"] == "Ministry of Finance"
 
 
 def test_check_domain_flags_defacement_on_drastic_change(db_session, mocker):
@@ -68,7 +53,8 @@ def test_check_domain_flags_defacement_on_drastic_change(db_session, mocker):
         "app.services.checker_service.requests.get",
         return_value=FakeResponse(text="<html><body>HACKED BY ANONYMOUS</body></html>"),
     )
-    snapshot_repo = FakeSnapshotRepository(latest_text="Ministry of Finance of Uzbekistan")
+    snapshot_repo = FakeSnapshotRepository()
+    snapshot_repo.save(domain.id, "Ministry of Finance of Uzbekistan")
     service = CheckerService(db_session, snapshot_repository=snapshot_repo)
 
     result = service.check_domain(domain)
@@ -83,9 +69,12 @@ def test_check_domain_no_defacement_on_minor_change(db_session, mocker):
     domain = _make_domain(db_session)
     mocker.patch(
         "app.services.checker_service.requests.get",
-        return_value=FakeResponse(text="<html><body>Ministry of Finance, updated</body></html>"),
+        return_value=FakeResponse(
+            text="<html><body>Ministry of Finance, updated</body></html>"
+        ),
     )
-    snapshot_repo = FakeSnapshotRepository(latest_text="Ministry of Finance")
+    snapshot_repo = FakeSnapshotRepository()
+    snapshot_repo.save(domain.id, "Ministry of Finance")
     service = CheckerService(db_session, snapshot_repository=snapshot_repo)
 
     result = service.check_domain(domain)
