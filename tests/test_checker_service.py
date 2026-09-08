@@ -98,3 +98,20 @@ def test_check_domain_handles_request_failure(db_session, mocker):
     assert result.is_available is False
     assert result.status_code is None
     assert result.error_message == "connection refused"
+
+
+def test_check_domain_reuses_snapshot_when_content_unchanged(db_session, mocker):
+    # unchanged content should not create a second snapshot document
+    domain = _make_domain(db_session)
+    mocker.patch(
+        "app.services.checker_service.requests.get",
+        return_value=FakeResponse(text="<html><body>Ministry of Finance</body></html>"),
+    )
+    snapshot_repo = FakeSnapshotRepository()
+    service = CheckerService(db_session, snapshot_repository=snapshot_repo)
+
+    service.check_domain(domain)
+    service.check_domain(domain)
+
+    assert len(snapshot_repo.documents) == 1
+    assert snapshot_repo.documents[0]["seen_count"] == 2

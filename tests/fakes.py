@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from app.repositories.snapshot_repository import _content_hash
 
 
 class FakeSnapshotRepository:
@@ -6,12 +7,23 @@ class FakeSnapshotRepository:
         self.documents = []
 
     def save(self, domain_id: int, text_content: str):
+        now = datetime.now(timezone.utc)
+        content_hash = _content_hash(text_content)
+        previous = self.get_latest(domain_id)
+        if previous is not None and previous.get("content_hash") == content_hash:
+            previous["last_seen_at"] = now
+            previous["seen_count"] += 1
+            return previous["_id"]
+
         _id = len(self.documents)
         self.documents.append(
             {
                 "domain_id": domain_id,
-                "checked_at": datetime.now(timezone.utc),
+                "checked_at": now,
+                "last_seen_at": now,
                 "text_content": text_content,
+                "content_hash": content_hash,
+                "seen_count": 1,
                 "_id": _id,
             }
         )
@@ -25,7 +37,7 @@ class FakeSnapshotRepository:
 
         if not matching:
             return None
-        return max(matching, key=lambda doc: doc["checked_at"])
+        return max(matching, key=lambda doc: doc["last_seen_at"])
 
     def attach_check_id(self, snapshot_id: int, check_id: int) -> None:
         for doc in self.documents:

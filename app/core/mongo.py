@@ -14,9 +14,9 @@ snapshots_collection = mongo_db["snapshots"]
 
 
 def ensure_indexes():
-    snapshots_collection.create_index([("domain_id", 1), ("checked_at", -1)])
+    snapshots_collection.create_index([("domain_id", 1), ("last_seen_at", -1)])
     snapshots_collection.create_index(
-        "checked_at",
+        "last_seen_at",
         expireAfterSeconds=settings.snapshot_ttl_days * 24 * 60 * 60,
     )
 
@@ -28,11 +28,21 @@ def ensure_schema_validator():
             "validator": {
                 "$jsonSchema": {
                     "bsonType": "object",
-                    "required": ["domain_id", "checked_at", "text_content"],
+                    "required": [
+                        "domain_id",
+                        "checked_at",
+                        "text_content",
+                        "last_seen_at",
+                        "content_hash",
+                        "seen_count",
+                    ],
                     "properties": {
                         "domain_id": {"bsonType": "int"},
                         "checked_at": {"bsonType": "date"},
                         "text_content": {"bsonType": "string"},
+                        "last_seen_at": {"bsonType": "date"},
+                        "content_hash": {"bsonType": "string"},
+                        "seen_count": {"bsonType": "int"},
                     },
                 }
             },
